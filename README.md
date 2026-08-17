@@ -14,15 +14,25 @@ engineer touches day one on the job.
 
 ```mermaid
 flowchart LR
-    subgraph "Simulated network (Docker)"
-        A[attacker\nnmap + nping + curl] -->|attack traffic| V[victim\nOWASP Juice Shop]
-        C[capture\ntcpdump] -.sniffs attacker netns.-> A
-    end
+    H[your browser\nlocalhost:3000] -->|manual testing| V
+    A[attacker\nnmap + nping + curl] -->|scripted attack| V[victim\nOWASP Juice Shop]
+    C[capture\ntcpdump] -.sniffs victim netns, sees both.-> V
     C -->|capture.pcap| S[Suricata\nET Open + local rules]
     S -->|eve.json alerts| F[Filebeat\nSuricata module]
     F --> E[Elasticsearch]
     E --> K[Kibana\nSuricata alert dashboards]
 ```
+
+`capture` sniffs on the **victim's** own network interface, not the
+attacker's — so it sees everything that reaches Juice Shop, including
+anything you do by hand at http://localhost:3000, not just the scripted
+attack. Try the classic SQLi login bypass yourself: email `' OR 1=1--`,
+any password — it logs you in as `admin@juice-sh.op` with zero real
+credentials, and (after `make capture-stop analyze`) shows up as a real
+Suricata alert. One caveat: the port-scan rule just counts SYN packets per
+source in a window, not distinct ports, so normal browser page-loads
+(which open several parallel connections) can occasionally trip it too —
+a small, realistic taste of tuning threshold rules in real SOC work.
 
 ## Try it online — no install
 
