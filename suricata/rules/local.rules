@@ -19,13 +19,13 @@ alert http any any -> any any (msg:"LAB Cross-Site Scripting (XSS) attempt"; \
   classtype:web-application-attack; sid:9000003; rev:1;)
 
 alert http any any -> any any (msg:"LAB Directory Traversal attempt"; \
-  flow:to_server,established; http.uri; \
+  flow:to_server,established; http.uri.raw; \
   content:"../../"; \
   classtype:web-application-attack; sid:9000004; rev:1;)
 
 alert http any any -> any any (msg:"LAB Command Injection attempt"; \
   flow:to_server,established; http.uri; \
-  pcre:"/;\s*(cat|whoami|id|ls)\b|\$\(.*\)/i"; \
+  pcre:"/\x3b\s*(cat|whoami|id|ls)\b|\$\(.*\)/i"; \
   classtype:web-application-attack; sid:9000005; rev:1;)
 
 # Behavioral: port scan — 6+ distinct SYNs to one host within 5s

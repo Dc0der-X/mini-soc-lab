@@ -15,7 +15,7 @@ engineer touches day one on the job.
 ```mermaid
 flowchart LR
     subgraph "Simulated network (Docker)"
-        A[attacker\nnmap + hping3 + curl] -->|attack traffic| V[victim\nOWASP Juice Shop]
+        A[attacker\nnmap + nping + curl] -->|attack traffic| V[victim\nOWASP Juice Shop]
         C[capture\ntcpdump] -.sniffs attacker netns.-> A
     end
     C -->|capture.pcap| S[Suricata\nET Open + local rules]
@@ -31,8 +31,7 @@ flowchart LR
 | Detection engine | Suricata (IDS/IPS/NSM) | https://suricata.io/ |
 | Detection ruleset | Emerging Threats Open | https://rules.emergingthreats.net/ |
 | Packet capture | tcpdump | https://www.tcpdump.org/ |
-| Attack tooling | nmap | https://nmap.org/ |
-| Attack tooling | hping3 | http://www.hping.org/ |
+| Attack tooling | nmap (scan + nping for flood) | https://nmap.org/ |
 | Vulnerable target | OWASP Juice Shop | https://owasp.org/www-project-juice-shop/ |
 | Log shipping | Filebeat (Suricata module) | https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-module-suricata.html |
 | SIEM / search | Elasticsearch | https://www.elastic.co/elasticsearch |
@@ -72,7 +71,9 @@ against the resulting pcap, and start Elasticsearch/Kibana/Filebeat.
 Then open:
 - **Kibana** → http://localhost:5601 → *Analytics ▸ Dashboards* → search
   "Suricata" for the pre-built alert dashboards (Filebeat's Suricata module
-  loads these automatically, no manual dashboard-building).
+  loads these automatically, no manual dashboard-building). If a panel looks
+  empty, widen the time picker (top right, defaults to "Last 15 minutes") —
+  it needs to cover whenever `make attack` actually ran.
 - **Raw alerts** → [`suricata/logs/eve.json`](suricata/logs/eve.json) (JSON,
   one alert per line) or `suricata/logs/fast.log` (human-readable).
 

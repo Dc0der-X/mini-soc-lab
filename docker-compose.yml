@@ -21,13 +21,7 @@ services:
       - ./suricata/rules:/var/lib/suricata/rules
     entrypoint: ["/bin/sh", "-c"]
     command:
-      - >
-        suricata-update --no-reload &&
-        suricata -r /pcaps/capture.pcap
-                  -S /var/lib/suricata/rules/suricata.rules
-                  -S /var/lib/suricata/rules/local.rules
-                  -l /var/log/suricata
-                  -k none
+      - "suricata-update --no-reload && cat /var/lib/suricata/rules/local.rules >> /var/lib/suricata/rules/suricata.rules && suricata -r /pcaps/capture.pcap -S /var/lib/suricata/rules/suricata.rules -l /var/log/suricata -k none"
 
   # ---- Simulated network (attacker + target) -------------------------------
   # OWASP Juice Shop: deliberately vulnerable web app used industry-wide for
@@ -39,7 +33,7 @@ services:
     ports:
       - "3000:3000"
 
-  # Attacker: Kali-style toolbox (nmap, hping3, curl) used to generate the
+  # Attacker: Kali-style toolbox (nmap, nping, curl) used to generate the
   # traffic Suricata will detect. See attacker/simulate_attacks.sh
   attacker:
     build: ./attacker
@@ -77,6 +71,11 @@ services:
     networks: [soc-net]
     ports:
       - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.15.0
@@ -84,9 +83,16 @@ services:
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     networks: [soc-net]
-    depends_on: [elasticsearch]
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
     ports:
       - "5601:5601"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5601/api/status >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
 
   # Filebeat's Suricata module ships pre-built alert dashboards — no manual
   # Kibana dashboard-building needed. (elastic.co/guide .../filebeat-module-suricata.html)
@@ -95,7 +101,12 @@ services:
     profiles: ["siem"]
     user: root
     networks: [soc-net]
-    depends_on: [elasticsearch, kibana]
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+    restart: on-failure
     volumes:
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - ./suricata/logs:/var/log/suricata:ro
