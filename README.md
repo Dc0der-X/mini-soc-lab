@@ -72,10 +72,65 @@ Behavioral (threshold rules, same thresholds as classic SOC playbooks):
 
 ## Prerequisites (running locally)
 
-[Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/)
-(Apple Silicon or Intel build, whichever matches your Mac). Everything below
-assumes `docker` and `docker compose` are on your `PATH`. Skip this entirely
-by using the no-install option above instead.
+You need `docker` and `docker compose` (v2, the `docker compose` subcommand —
+not the old standalone `docker-compose`) on your `PATH`. Pick your OS below,
+or skip this entirely with the no-install option above.
+
+<details>
+<summary><b>macOS</b></summary>
+
+Install [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/)
+(Apple Silicon or Intel build, whichever matches your Mac). Launch it once
+from Applications — first launch registers the `docker` CLI, which can take
+30–60 seconds. Verify:
+
+```bash
+docker --version && docker compose version
+```
+</details>
+
+<details>
+<summary><b>Windows</b></summary>
+
+Install [Docker Desktop for Windows](https://docs.docker.com/desktop/setup/install/windows-install/)
+with the **WSL2 backend** (the installer defaults to this and will prompt to
+enable WSL2 if it isn't already). Then pick one:
+
+- **Recommended — run everything from a WSL2 terminal** (Ubuntu, via Windows
+  Terminal or `wsl`): behaves identically to Linux below, including `make`.
+  ```bash
+  sudo apt update && sudo apt install -y make git
+  ```
+- **Native PowerShell**: `docker` and `docker compose` work fine, but `make`
+  isn't available by default. Use the make-free command reference further
+  down instead of `make demo`.
+
+Verify from either shell:
+```powershell
+docker --version
+docker compose version
+```
+</details>
+
+<details>
+<summary><b>Linux</b></summary>
+
+Install Docker Engine + the Compose plugin via the
+[official instructions](https://docs.docker.com/engine/install/) for your
+distribution, or the quick convenience script (fine for a lab machine, not
+recommended for anything production):
+
+```bash
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER   # then log out/in, or `newgrp docker`
+sudo apt install -y make git    # Debian/Ubuntu — use dnf/pacman/etc on other distros
+```
+
+Verify:
+```bash
+docker --version && docker compose version
+```
+</details>
 
 ## Run it
 
@@ -111,6 +166,64 @@ Tear down:
 make down      # stop containers, keep captured data
 make clean     # stop containers, wipe pcaps/logs/ES volume
 ```
+
+### No `make`? Run the exact same steps by hand
+
+Every Makefile target is a thin wrapper around plain `docker compose`. If
+you're on native Windows PowerShell/CMD, or any environment without `make`,
+run these directly — line for line, this *is* `make demo`:
+
+```bash
+# 1. build attacker image, start victim + attacker + capture
+docker compose --profile lab up -d --build victim attacker capture
+
+# 2. wait for Juice Shop to answer
+docker compose exec -T attacker sh -c "until curl -s -o /dev/null http://victim:3000; do sleep 2; done"
+
+# 3. run the attack simulation
+docker compose exec -T attacker /attacks/simulate_attacks.sh
+
+# 4. stop the capture, flushing the pcap
+docker compose stop capture
+
+# 5. run Suricata against the captured traffic
+docker compose --profile analyze run --rm suricata
+
+# 6. bring up the SIEM
+docker compose --profile siem up -d elasticsearch kibana filebeat
+```
+
+Reference table for every other Makefile target:
+
+| `make` target | Equivalent command |
+|---|---|
+| `make lab-up` | `docker compose --profile lab up -d --build victim attacker capture` |
+| `make attack` | `docker compose exec -T attacker /attacks/simulate_attacks.sh` |
+| `make capture-stop` | `docker compose stop capture` |
+| `make analyze` | `docker compose --profile analyze run --rm suricata` |
+| `make siem-up` | `docker compose --profile siem up -d elasticsearch kibana filebeat` |
+| `make down` | `docker compose --profile lab --profile siem --profile analyze down` |
+| `make clean` | `make down` + `rm -f pcaps/*.pcap suricata/logs/*.json suricata/logs/*.log` + `docker compose --profile siem down -v` |
+
+## Practice checklist — first time running this
+
+A concrete sequence for a first pass, start to finish:
+
+1. Confirm prerequisites above, then `cd ~/mini-soc-lab && make demo` (or the
+   no-`make` block above). First run takes 3–6 minutes pulling images.
+2. Open Kibana (http://localhost:5601) → *Analytics ▸ Dashboards* → search
+   "Suricata" → open **[Filebeat Suricata] Alert Overview**.
+3. Widen the time picker to "Last 24 hours" if panels look empty.
+4. Open `attacker/simulate_attacks.sh` and `suricata/rules/local.rules` side
+   by side — match each payload to the rule (SID) that catches it.
+5. Re-run just the attack: `make attack capture-stop analyze`, then refresh
+   Kibana and watch the alert counts change.
+6. Try `make clean`, then `make demo` again from scratch to confirm the
+   whole pipeline is reproducible, not a one-off fluke.
+7. Optional stretch goal: drop a real malware pcap from
+   [malware-traffic-analysis.net](https://www.malware-traffic-analysis.net/)
+   into `pcaps/capture.pcap` and run `make analyze` directly — see what a
+   production ruleset catches on real-world traffic.
 
 ## Why real tools instead of a custom engine
 
