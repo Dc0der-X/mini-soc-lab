@@ -33,7 +33,7 @@ Docker Hub account, click **+ ADD NEW INSTANCE**, then paste:
 
 ```bash
 apk add --no-cache git make
-git clone __GITHUB_URL__.git
+git clone https://github.com/Dc0der-X/mini-soc-lab.git
 cd mini-soc-lab
 make demo
 ```
