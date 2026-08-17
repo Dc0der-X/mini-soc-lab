@@ -24,6 +24,26 @@ flowchart LR
     E --> K[Kibana\nSuricata alert dashboards]
 ```
 
+## Try it online — no install
+
+Don't want to install Docker locally? Run the whole thing for free on
+[Play with Docker](https://labs.play-with-docker.com/) — a disposable Linux
+box with Docker pre-installed, live in your browser. Sign in with a free
+Docker Hub account, click **+ ADD NEW INSTANCE**, then paste:
+
+```bash
+apk add --no-cache git make
+git clone __GITHUB_URL__.git
+cd mini-soc-lab
+make demo
+```
+
+Play with Docker auto-detects listening ports and shows clickable badges at
+the top of the screen — click **3000** for Juice Shop and **5601** for
+Kibana. Sessions last 4 hours, then the whole box is destroyed — spin up a
+fresh one anytime, free, forever. See the [landing page](site/index.html)
+for a friendlier walkthrough of the same steps.
+
 ## Tools used (all open source — click through)
 
 | Layer | Tool | Link |
@@ -50,12 +70,12 @@ Behavioral (threshold rules, same thresholds as classic SOC playbooks):
 - Port scan — 6+ ports from one source within 5 seconds
 - SYN flood / DoS — 30+ SYNs to one destination within 2 seconds
 
-## Prerequisites
+## Prerequisites (running locally)
 
-**Docker Desktop is not currently installed on this machine.** Install it
-first: https://docs.docker.com/desktop/setup/install/mac-install/
+[Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/)
 (Apple Silicon or Intel build, whichever matches your Mac). Everything below
-assumes `docker` and `docker compose` are on your `PATH`.
+assumes `docker` and `docker compose` are on your `PATH`. Skip this entirely
+by using the no-install option above instead.
 
 ## Run it
 

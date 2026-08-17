@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mini-soc-lab — Try a Real Detection Pipeline, Free</title>
+<meta name="description" content="Suricata + Elastic Stack detection lab, real attacks, real alerts — runs free in your browser via Play with Docker. No install.">
+<style>
+:root{
+  --navy:#0d1b2c; --navy-2:#16293f;
+  --red:#d81f26; --red-2:#b1131a;
+  --ink:#1b1b1b; --muted:#5c6673; --line:#dfe4ea;
+  --bg:#ffffff; --soft:#f6f8fa;
+  --green:#12904c; --green-bg:#eaf7ef;
+  --blue:#1a5fb4; --blue-bg:#eaf1fb;
+  --amber:#c9820a; --amber-bg:#fdf5e4;
+  --code-bg:#0d1b2c; --code-ink:#dde7f3;
+  --font-display:'Poppins','Century Gothic','Futura',-apple-system,'Segoe UI',sans-serif;
+  --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --font-mono:ui-monospace,'SF Mono','Cascadia Code','DejaVu Sans Mono',Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0a121e; --soft:#101d2e; --ink:#e8edf4; --muted:#93a1b3; --line:#22334a;
+    --green-bg:rgba(63,211,154,.13); --blue-bg:rgba(107,163,242,.13); --amber-bg:rgba(232,179,74,.13);
+  }
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);line-height:1.6;}
+h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance;}
+a{color:var(--red);}
+.wrap{max-width:900px;margin:0 auto;padding:0 24px;}
+code,.mono{font-family:var(--font-mono);}
+
+header{border-bottom:1px solid var(--line);}
+.hbar{display:flex;align-items:center;justify-content:space-between;height:64px;}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px;letter-spacing:.02em;}
+.brand .sq{width:18px;height:18px;background:var(--red);clip-path:polygon(0 0,100% 0,78% 100%,0 100%);}
+header nav a{color:var(--muted);text-decoration:none;font-size:13.5px;font-weight:600;margin-left:22px;}
+header nav a:hover{color:var(--ink);}
+
+.hero{padding:64px 0 40px;text-align:center;}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:12px;font-weight:700;
+  color:var(--red);text-transform:uppercase;letter-spacing:.12em;margin-bottom:18px;}
+.eyebrow::before{content:'';width:7px;height:7px;background:var(--red);border-radius:50%;}
+.hero h1{font-size:clamp(32px,5.5vw,52px);font-weight:800;letter-spacing:-.02em;line-height:1.05;}
+.hero h1 .r{color:var(--red);}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:56ch;margin:18px auto 0;}
+.cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:30px;}
+.btn{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:15px;padding:14px 26px;border-radius:99px;
+  text-decoration:none;transition:transform .15s;}
+.btn:hover{transform:translateY(-1px);}
+.btn-primary{background:var(--red);color:#fff;}
+.btn-primary:hover{background:var(--red-2);}
+.btn-ghost{background:var(--soft);color:var(--ink);border:1px solid var(--line);}
+
+.chips{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:28px;}
+.chip{display:flex;align-items:center;gap:7px;background:var(--soft);border:1px solid var(--line);border-radius:99px;
+  padding:8px 15px;font-size:13px;font-weight:600;}
+.chip b{color:var(--red);font-family:var(--font-display);}
+
+section{padding:46px 0;border-top:1px solid var(--line);}
+.sec-head{margin-bottom:26px;text-align:center;}
+.kicker{font-family:var(--font-mono);font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;}
+.sec-head h2{font-size:27px;font-weight:800;margin-top:6px;}
+.sec-head p{color:var(--muted);max-width:56ch;margin:10px auto 0;}
+
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+@media (max-width:720px){.steps{grid-template-columns:1fr;}}
+.step{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:22px;}
+.step .n{width:32px;height:32px;border-radius:50%;background:var(--navy);color:#fff;font-family:var(--font-mono);
+  font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
+.step h3{font-size:15.5px;font-weight:700;}
+.step p{font-size:13.6px;color:var(--muted);margin-top:8px;}
+
+pre{background:var(--code-bg);color:var(--code-ink);border-radius:10px;padding:20px 22px;font-family:var(--font-mono);
+  font-size:13.5px;line-height:1.75;overflow-x:auto;margin:0;}
+pre .c{color:#8095ae;}
+.codecard{position:relative;}
+.copybtn{position:absolute;top:12px;right:12px;background:rgba(255,255,255,.1);color:#dde7f3;border:1px solid rgba(255,255,255,.2);
+  border-radius:6px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:var(--font-mono);}
+.copybtn:hover{background:rgba(255,255,255,.18);}
+
+.chain{display:flex;align-items:flex-start;justify-content:space-between;gap:4px;flex-wrap:wrap;}
+.chain .item{flex:1;text-align:center;min-width:78px;}
+.chain .cir{width:46px;height:46px;border-radius:50%;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;}
+.chain .cir svg{width:22px;height:22px;}
+.chain .nm{font-weight:700;font-size:12.5px;}
+.chain .sb{font-size:10.8px;color:var(--muted);line-height:1.3;}
+.chain .ar{color:var(--ink);font-size:16px;margin-top:13px;font-weight:300;}
+
+.notebox{display:flex;gap:13px;background:var(--amber-bg);border:1px solid #f0dcae;border-radius:10px;padding:16px 18px;margin-top:24px;}
+.notebox b{color:var(--amber);}
+
+.finalcta{background:var(--navy);border-radius:16px;padding:40px 32px;text-align:center;}
+.finalcta h2{color:#fff;font-size:24px;font-weight:800;}
+.finalcta p{color:#b9c6d8;font-size:14.5px;max-width:50ch;margin:12px auto 0;}
+
+footer{padding:34px 0;text-align:center;color:var(--muted);font-size:12.5px;}
+footer a{color:var(--muted);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap hbar">
+    <div class="brand"><span class="sq"></span>mini-soc-lab</div>
+    <nav>
+      <a href="#how">How it works</a>
+      <a href="#run">Run it</a>
+      <a href="__GITHUB_URL__" target="_blank">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow">Free · Runs in your browser · No install</div>
+    <h1>A real detection<br>pipeline. <span class="r">Try it live.</span></h1>
+    <p class="lead">Suricata, Elasticsearch and Kibana wired to a deliberately vulnerable app and a real attacker toolbox — the exact open-source stack a SOC uses, not a simplified stand-in. One session, entirely free, nothing to install.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://labs.play-with-docker.com/" target="_blank">Launch Free Lab →</a>
+      <a class="btn btn-ghost" href="__GITHUB_URL__" target="_blank">View Source on GitHub</a>
+    </div>
+    <div class="chips">
+      <div class="chip"><b>7</b>&nbsp;containers</div>
+      <div class="chip"><b>6</b>&nbsp;real attacks</div>
+      <div class="chip"><b>$0</b>&nbsp;forever</div>
+      <div class="chip"><b>4 hrs</b>&nbsp;per session</div>
+    </div>
+  </div>
+</div>
+
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">How it works</div>
+      <h2>Three steps, one real SOC pipeline</h2>
+      <p>Play with Docker gives you a free, disposable Linux box with Docker already installed — right in your browser. This project runs on it exactly as it runs anywhere else.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="n">1</div>
+        <h3>Sign in with a free Docker Hub account</h3>
+        <p>Click "Launch Free Lab," sign in with a Docker ID (free, ~1 minute if you don't have one), then click "+ ADD NEW INSTANCE." You get a real terminal.</p>
+      </div>
+      <div class="step">
+        <div class="n">2</div>
+        <h3>Paste four commands</h3>
+        <p>Clone the repo and run the demo — copy the block below straight into the terminal Play with Docker gives you.</p>
+      </div>
+      <div class="step">
+        <div class="n">3</div>
+        <h3>Click the port badges</h3>
+        <p>Play with Docker auto-detects open ports and shows clickable links at the top of the screen — click <b>3000</b> for the vulnerable app, <b>5601</b> for the Kibana dashboard full of alerts.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="run">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">Copy, paste, done</div>
+      <h2>Run the whole thing</h2>
+    </div>
+    <div class="codecard">
+      <button class="copybtn" onclick="copyCmd()">Copy</button>
+      <pre id="cmdblock"><span class="c"># inside your Play with Docker terminal</span>
+apk add --no-cache git make
+git clone __GITHUB_URL__.git
+cd mini-soc-lab
+make demo</pre>
+    </div>
+    <div class="notebox">
+      <div>⏱</div>
+      <div><b>First run takes 3–6 minutes</b> — it's pulling Suricata, Elasticsearch, Kibana and the vulnerable target app. Every run after that is fast. The whole session (and everything in it) is destroyed after 4 hours — spin up a fresh one anytime, free, forever.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">What's actually running</div>
+      <h2>Real tools, wired together</h2>
+    </div>
+    <div class="chain">
+      <div class="item"><div class="cir" style="background:#fadadb;color:var(--red)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l3 6 6 1-4.5 4.5L17.5 20 12 17l-5.5 3 1-6.5L3 9l6-1z"/></svg></div><div class="nm">attacker</div><div class="sb">nmap, nping, curl</div></div>
+      <div class="ar">→</div>
+      <div class="item"><div class="cir" style="background:#d7e5fa;color:var(--blue)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/></svg></div><div class="nm">victim</div><div class="sb">OWASP Juice Shop</div></div>
+      <div class="ar">→</div>
+      <div class="item"><div class="cir" style="background:#f3eefc;color:#6b3fc4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg></div><div class="nm">capture</div><div class="sb">tcpdump</div></div>
+      <div class="ar">→</div>
+      <div class="item"><div class="cir" style="background:#faecc9;color:var(--amber)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div><div class="nm">suricata</div><div class="sb">real IDS engine</div></div>
+      <div class="ar">→</div>
+      <div class="item"><div class="cir" style="background:#eaf7ef;color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V10M10 19V5M16 19v-7M22 19H2"/></svg></div><div class="nm">kibana</div><div class="sb">the dashboard you see</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="finalcta">
+      <h2>Want the guided version?</h2>
+      <p>SkillXGen runs practical SOC Analyst, GRC and Pentesting training built around real tickets, real logs and real labs — not slides.</p>
+      <div class="cta-row" style="margin-top:22px;">
+        <a class="btn btn-primary" href="https://calendly.com/vivekmehta850/15min" target="_blank">Book a free 15-min call</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">Built by Vivek Mehta — SkillXGen · <a href="__GITHUB_URL__" target="_blank">Source on GitHub</a> · Runs on <a href="https://labs.play-with-docker.com/" target="_blank">Play with Docker</a>, free forever.</div>
+</footer>
+
+<script>
+function copyCmd(){
+  const text = document.getElementById('cmdblock').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copybtn');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+}
+</script>
+
+</body>
+</html>
