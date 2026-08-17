@@ -1,0 +1,102 @@
+name: mini-soc-lab
+
+networks:
+  soc-net:
+    driver: bridge
+
+volumes:
+  es-data:
+
+services:
+  # ---- Detection ----------------------------------------------------------
+  # Suricata: industry-standard open-source IDS/IPS/NSM engine (https://suricata.io/)
+  # Runs as a one-shot job against the pcap captured from the attack simulation.
+  # Trigger with: docker compose --profile analyze run --rm suricata
+  suricata:
+    image: jasonish/suricata:7.0.7
+    profiles: ["analyze"]
+    volumes:
+      - ./pcaps:/pcaps:ro
+      - ./suricata/logs:/var/log/suricata
+      - ./suricata/rules:/var/lib/suricata/rules
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        suricata-update --no-reload &&
+        suricata -r /pcaps/capture.pcap
+                  -S /var/lib/suricata/rules/suricata.rules
+                  -S /var/lib/suricata/rules/local.rules
+                  -l /var/log/suricata
+                  -k none
+
+  # ---- Simulated network (attacker + target) -------------------------------
+  # OWASP Juice Shop: deliberately vulnerable web app used industry-wide for
+  # security training and tool testing (https://owasp.org/www-project-juice-shop/)
+  victim:
+    image: bkimminich/juice-shop:latest
+    profiles: ["lab"]
+    networks: [soc-net]
+    ports:
+      - "3000:3000"
+
+  # Attacker: Kali-style toolbox (nmap, hping3, curl) used to generate the
+  # traffic Suricata will detect. See attacker/simulate_attacks.sh
+  attacker:
+    build: ./attacker
+    profiles: ["lab"]
+    networks: [soc-net]
+    cap_add: [NET_RAW, NET_ADMIN]
+    depends_on: [victim]
+    command: ["sleep", "infinity"]
+
+  # tcpdump sidecar sharing the attacker's network namespace so it captures
+  # every packet the attacker sends/receives, regardless of Docker bridge
+  # switching behavior. (https://www.tcpdump.org/)
+  capture:
+    image: alpine:3.20
+    profiles: ["lab"]
+    network_mode: "service:attacker"
+    depends_on: [attacker]
+    cap_add: [NET_RAW, NET_ADMIN]
+    volumes:
+      - ./pcaps:/pcaps
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "apk add --no-cache tcpdump >/dev/null && tcpdump -i eth0 -w /pcaps/capture.pcap"
+
+  # ---- SIEM / visualization (Elastic Stack, elastic.co) --------------------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    profiles: ["siem"]
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    networks: [soc-net]
+    ports:
+      - "9200:9200"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.15.0
+    profiles: ["siem"]
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks: [soc-net]
+    depends_on: [elasticsearch]
+    ports:
+      - "5601:5601"
+
+  # Filebeat's Suricata module ships pre-built alert dashboards — no manual
+  # Kibana dashboard-building needed. (elastic.co/guide .../filebeat-module-suricata.html)
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.15.0
+    profiles: ["siem"]
+    user: root
+    networks: [soc-net]
+    depends_on: [elasticsearch, kibana]
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./suricata/logs:/var/log/suricata:ro
+    command: ["--strict.perms=false"]

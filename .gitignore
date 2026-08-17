@@ -1,0 +1,5 @@
+pcaps/*.pcap
+suricata/logs/*.json
+suricata/logs/*.log
+suricata/rules/suricata.rules
+suricata/rules/*.yaml
