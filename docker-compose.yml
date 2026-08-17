@@ -43,14 +43,17 @@ services:
     depends_on: [victim]
     command: ["sleep", "infinity"]
 
-  # tcpdump sidecar sharing the attacker's network namespace so it captures
-  # every packet the attacker sends/receives, regardless of Docker bridge
-  # switching behavior. (https://www.tcpdump.org/)
+  # tcpdump sidecar sharing the VICTIM's network namespace — this is what a
+  # real NIDS deployment mirrors too (the link facing the protected asset),
+  # so it captures everything that reaches Juice Shop: the scripted attacker
+  # container traffic AND anything sent from your own host browser via the
+  # published port, not just attacker-container-originated traffic.
+  # (https://www.tcpdump.org/)
   capture:
     image: alpine:3.20
     profiles: ["lab"]
-    network_mode: "service:attacker"
-    depends_on: [attacker]
+    network_mode: "service:victim"
+    depends_on: [victim]
     cap_add: [NET_RAW, NET_ADMIN]
     volumes:
       - ./pcaps:/pcaps
